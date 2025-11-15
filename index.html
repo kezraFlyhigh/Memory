@@ -1,0 +1,171 @@
+import React, { useState, useEffect } from 'react';
+import { Briefcase } from 'lucide-react';
+
+export default function SuitcaseGame() {
+  const [items, setItems] = useState(['toothbrush']);
+  const [currentInput, setCurrentInput] = useState('');
+  const [gameState, setGameState] = useState('playing'); // playing, won, lost
+  const [message, setMessage] = useState('');
+  const [hiddenWords, setHiddenWords] = useState(new Set());
+
+  useEffect(() => {
+    // Set up timers to hide each word after 10 seconds
+    const timers = items.map((_, index) => {
+      return setTimeout(() => {
+        setHiddenWords(prev => new Set([...prev, index]));
+      }, 10000);
+    });
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [items]);
+
+  const handleAdd = () => {
+    if (!currentInput.trim()) {
+      setMessage('Please enter an item!');
+      return;
+    }
+
+    // Add the new item to the list
+    const newItems = [...items, currentInput.trim().toLowerCase()];
+    setItems(newItems);
+    setCurrentInput('');
+    setMessage(`Great! Now remember all ${newItems.length} items.`);
+    setHiddenWords(new Set()); // Reset hidden words for new round
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleAdd();
+    }
+  };
+
+  const handleRecall = () => {
+    const userRecall = prompt('Type all items in order, separated by commas:');
+    
+    if (userRecall === null) return; // User cancelled
+    
+    const userItems = userRecall.split(',').map(item => item.trim().toLowerCase());
+    
+    if (JSON.stringify(userItems) === JSON.stringify(items)) {
+      setMessage('🎉 Perfect! You remembered everything correctly!');
+      setGameState('won');
+    } else {
+      setMessage('❌ Not quite right. Try again!');
+      setGameState('lost');
+    }
+  };
+
+  const resetGame = () => {
+    setItems(['toothbrush']);
+    setCurrentInput('');
+    setGameState('playing');
+    setMessage('');
+    setHiddenWords(new Set());
+  };
+
+  const renderSentence = () => {
+    return (
+      <div className="text-lg leading-relaxed">
+        <span className="font-semibold">I packed my suitcase and in it I put </span>
+        {items.map((item, index) => (
+          <React.Fragment key={index}>
+            <span 
+              className={`transition-all duration-500 ${
+                hiddenWords.has(index) 
+                  ? 'bg-gray-800 text-gray-800 select-none' 
+                  : 'text-blue-600 font-medium'
+              }`}
+            >
+              {hiddenWords.has(index) ? ':hidden:' : item}
+            </span>
+            {index < items.length - 1 && <span>, </span>}
+          </React.Fragment>
+        ))}
+        <span>.</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Briefcase className="text-indigo-600" size={32} />
+            <h1 className="text-3xl font-bold text-gray-800">I Packed My Suitcase</h1>
+          </div>
+
+          <div className="bg-indigo-50 rounded-lg p-6 mb-6">
+            {renderSentence()}
+          </div>
+
+          <div className="text-sm text-gray-600 mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            ⚠️ <strong>Remember:</strong> Each word will hide after 10 seconds!
+          </div>
+
+          {message && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              gameState === 'won' ? 'bg-green-50 text-green-800' :
+              gameState === 'lost' ? 'bg-red-50 text-red-800' :
+              'bg-blue-50 text-blue-800'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          {gameState === 'playing' && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add a new item:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentInput}
+                  onChange={(e) => setCurrentInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g., sunglasses"
+                />
+                <button
+                  onClick={handleAdd}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleRecall}
+              disabled={gameState !== 'playing'}
+              className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              Test My Memory
+            </button>
+            <button
+              onClick={resetGame}
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            >
+              Reset Game
+            </button>
+          </div>
+
+          <div className="mt-6 text-sm text-gray-600">
+            <strong>How to play:</strong>
+            <ol className="list-decimal list-inside mt-2 space-y-1">
+              <li>Memorize the current list of items</li>
+              <li>Add a new item to make the list longer</li>
+              <li>Watch as words disappear after 10 seconds!</li>
+              <li>Click "Test My Memory" when ready to recall all items</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
