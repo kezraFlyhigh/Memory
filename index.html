@@ -13,7 +13,7 @@ export default function SuitcaseGame() {
     const timers = items.map((_, index) => {
       return setTimeout(() => {
         setHiddenWords(prev => new Set([...prev, index]));
-      }, 10000);
+      }, 5000);
     });
 
     return () => {
