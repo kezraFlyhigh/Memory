@@ -2,18 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>I Packed My Suitcase - Memory Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>I Packed My Suitcase</title>
+    <link rel="manifest" href="manifest.json">
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <script>
+        const { useState, useEffect, createElement: e } = React;
 
         const wordList = [
             'toothbrush', 'sunglasses', 'book', 'camera', 'phone', 'keys', 'wallet',
@@ -27,11 +26,49 @@
         ];
 
         function BriefcaseIcon() {
-            return (
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600">
-                    <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                </svg>
+            return e('svg', {
+                xmlns: 'http://www.w3.org/2000/svg',
+                width: 32, height: 32,
+                viewBox: '0 0 24 24',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                className: 'text-indigo-600'
+            },
+                e('rect', { width: '20', height: '14', x: '2', y: '7', rx: '2', ry: '2' }),
+                e('path', { d: 'M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16' })
+            );
+        }
+
+        function RecallModal({ onSubmit, onCancel }) {
+            const [value, setValue] = useState('');
+            return e('div', {
+                className: 'fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4'
+            },
+                e('div', { className: 'bg-white rounded-xl p-6 w-full max-w-md shadow-xl' },
+                    e('h2', { className: 'text-xl font-bold text-gray-800 mb-2' }, 'Test Your Memory'),
+                    e('p', { className: 'text-sm text-gray-600 mb-4' }, 'Type all items separated by commas (any order):'),
+                    e('textarea', {
+                        className: 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4 resize-none text-base',
+                        rows: 3,
+                        value,
+                        onChange: ev => setValue(ev.target.value),
+                        placeholder: 'e.g. passport, shoes, camera',
+                        autoFocus: true
+                    }),
+                    e('div', { className: 'flex gap-3' },
+                        e('button', {
+                            onClick: () => onSubmit(value),
+                            className: 'flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-base'
+                        }, 'Submit'),
+                        e('button', {
+                            onClick: onCancel,
+                            className: 'px-4 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-medium text-base'
+                        }, 'Cancel')
+                    )
+                )
             );
         }
 
@@ -42,11 +79,10 @@
             const [message, setMessage] = useState('');
             const [hiddenWords, setHiddenWords] = useState(new Set());
             const [userAnswer, setUserAnswer] = useState('');
+            const [showModal, setShowModal] = useState(false);
 
             useEffect(() => {
-                // Set up timers to hide each word after 10 seconds
                 const timers = items.map((_, index) => {
-                    // Only set timer if this word isn't already hidden
                     if (!hiddenWords.has(index)) {
                         return setTimeout(() => {
                             setHiddenWords(prev => new Set([...prev, index]));
@@ -54,188 +90,150 @@
                     }
                     return null;
                 });
-
-                return () => {
-                    timers.forEach(timer => timer && clearTimeout(timer));
-                };
-            }, [items, hiddenWords]);
+                return () => timers.forEach(t => t && clearTimeout(t));
+            }, [items]);
 
             const addRandomItem = () => {
-                const availableWords = wordList.filter(word => !items.includes(word));
-                
-                if (availableWords.length === 0) {
+                const available = wordList.filter(w => !items.includes(w));
+                if (available.length === 0) {
                     setMessage('No more unique items available!');
                     return;
                 }
-                
-                const randomItem = availableWords[Math.floor(Math.random() * availableWords.length)];
-                const newItems = [...items, randomItem];
+                const newItems = [...items, available[Math.floor(Math.random() * available.length)]];
                 setItems(newItems);
-                setMessage(`Item added! Now remember all ${newItems.length} items.`);
-                // Hidden words are cleared by useEffect when items change
+                setHiddenWords(new Set());
+                setMessage('Item added! Now remember all ' + newItems.length + ' items.');
             };
 
-         const handleRecall = () => {
-    // Hide all words immediately when testing memory
-    setHiddenWords(new Set(items.map((_, index) => index)));
-    
-    // Small delay to ensure state updates before prompt
-    setTimeout(() => {
-        const userRecall = prompt('Type all items (any order), separated by commas:');
-        
-        if (userRecall === null) return;
-        
-        setUserAnswer(userRecall);
-        
-        const userItems = userRecall.split(',').map(item => item.trim().toLowerCase()).sort();
-        const correctItems = [...items].sort();
-        
-        if (JSON.stringify(userItems) === JSON.stringify(correctItems)) {
-            setMessage('🎉 Perfect! You remembered all the items correctly! Adding another item...');
-            setGameState('won');
-            setTimeout(() => {
-                addRandomItem();
-                setGameState('playing');
-                setUserAnswer('');
-            }, 2000);
-        } else {
-            setMessage('❌ Not quite right. Some items are missing or incorrect. Check your answer below!');
-            setGameState('lost');
-        }
-    }, 50);
-};
+            const openRecallModal = () => {
+                setHiddenWords(new Set(items.map((_, i) => i)));
+                setShowModal(true);
+            };
+
+            const handleRecallSubmit = (input) => {
+                setShowModal(false);
+                setUserAnswer(input);
+                const userItems = input.split(',').map(i => i.trim().toLowerCase()).filter(Boolean).sort();
+                const correctItems = [...items].sort();
+                if (JSON.stringify(userItems) === JSON.stringify(correctItems)) {
+                    setMessage('ðŸŽ‰ Perfect! You remembered all items! Adding another...');
+                    setGameState('won');
+                    setTimeout(() => {
+                        addRandomItem();
+                        setGameState('playing');
+                        setUserAnswer('');
+                    }, 2000);
+                } else {
+                    setMessage('âŒ Not quite right. Check your answer below.');
+                    setGameState('lost');
+                }
+            };
+
+            const handleRecallCancel = () => {
+                setShowModal(false);
+                setHiddenWords(new Set());
+            };
 
             const showAllWords = () => {
                 setHiddenWords(new Set());
-                setMessage('💡 All words revealed!');
+                setMessage('ðŸ’¡ All words revealed!');
             };
 
             const resetGame = () => {
-                const newRandomWord = wordList[Math.floor(Math.random() * wordList.length)];
-                setItems([newRandomWord]);
+                setItems([wordList[Math.floor(Math.random() * wordList.length)]]);
                 setGameState('playing');
                 setMessage('');
                 setHiddenWords(new Set());
                 setUserAnswer('');
-                setTimeout(() => {
-                    setMessage('New game started!');
-                    setTimeout(() => setMessage(''), 2000);
-                }, 0);
             };
 
             const renderSentence = () => {
-                return (
-                    <div className="text-lg leading-relaxed">
-                        <span className="font-semibold">I packed my suitcase and in it I put </span>
-                        {items.map((item, index) => (
-                            <React.Fragment key={index}>
-                                <span 
-                                    className={`transition-all duration-500 ${
-                                        hiddenWords.has(index) 
-                                            ? 'bg-gray-800 text-gray-800 select-none' 
-                                            : 'text-blue-600 font-medium'
-                                    }`}
-                                >
-                                    {hiddenWords.has(index) ? ':hidden:' : item}
-                                </span>
-                                {index < items.length - 1 && <span>, </span>}
-                            </React.Fragment>
-                        ))}
-                        <span>.</span>
-                    </div>
+                return e('div', { className: 'text-lg leading-relaxed' },
+                    e('span', { className: 'font-semibold' }, 'I packed my suitcase and in it I put '),
+                    ...items.map((item, index) =>
+                        e(React.Fragment, { key: index },
+                            e('span', {
+                                className: 'transition-all duration-500 ' + (
+                                    hiddenWords.has(index)
+                                        ? 'bg-gray-800 text-gray-800 select-none'
+                                        : 'text-blue-600 font-medium'
+                                )
+                            }, hiddenWords.has(index) ? 'â– â– â– â– ' : item),
+                            index < items.length - 1 ? e('span', null, ', ') : null
+                        )
+                    ),
+                    e('span', null, '.')
                 );
             };
 
-            return (
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-                    <div className="max-w-3xl mx-auto">
-                        <div className="bg-white rounded-xl shadow-lg p-8">
-                            <div className="flex items-center justify-center gap-3 mb-6">
-                                <BriefcaseIcon />
-                                <h1 className="text-3xl font-bold text-gray-800">I Packed My Suitcase</h1>
-                            </div>
-
-                            <div className="bg-indigo-50 rounded-lg p-6 mb-6">
-                                {renderSentence()}
-                            </div>
-
-                            <div className="text-sm text-gray-600 mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                                ⚠️ <strong>Remember:</strong> Each word will hide after 5 seconds!
-                            </div>
-
-                            {message && (
-                                <div className={`mb-6 p-4 rounded-lg ${
-                                    gameState === 'won' ? 'bg-green-50 text-green-800' :
-                                    gameState === 'lost' ? 'bg-red-50 text-red-800' :
-                                    'bg-blue-50 text-blue-800'
-                                }`}>
-                                    {message}
-                                </div>
-                            )}
-
-                            {userAnswer && gameState !== 'playing' && (
-                                <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-300">
-                                    <div className="font-semibold text-gray-700 mb-2">Your Answer:</div>
-                                    <div className="text-gray-800">{userAnswer}</div>
-                                    <div className="font-semibold text-gray-700 mt-4 mb-2">Correct Answer:</div>
-                                    <div className="text-gray-800">{items.join(', ')}</div>
-                                </div>
-                            )}
-
-                            {gameState === 'playing' && (
-                                <div className="mb-6 flex gap-3">
-                                    <button
-                                        onClick={addRandomItem}
-                                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-lg"
-                                    >
-                                        Add Random Item
-                                    </button>
-                                    <button
-                                        onClick={showAllWords}
-                                        className="flex-1 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium text-lg"
-                                    >
-                                        Show All Words
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 mb-4">
-                                <button
-                                    onClick={handleRecall}
-                                    disabled={gameState !== 'playing'}
-                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                >
-                                    Test My Memory
-                                </button>
-                                <button
-                                    onClick={resetGame}
-                                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
-                                >
-                                    Reset Game
-                                </button>
-                            </div>
-
-                            <div className="mt-6 text-sm text-gray-600">
-                                <strong>How to play:</strong>
-                                <ol className="list-decimal list-inside mt-2 space-y-1">
-                                    <li>Memorize the current list of items</li>
-                                    <li>Click "Add Random Item" to make the list longer</li>
-                                    <li>Watch as words disappear after 10 seconds!</li>
-                                    <li>Click "Show All Words" if you need to see them again</li>
-                                    <li>Click "Test My Memory" and type all items (any order is fine!)</li>
-                                </ol>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            return e('div', { className: 'min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8' },
+                showModal && e(RecallModal, { onSubmit: handleRecallSubmit, onCancel: handleRecallCancel }),
+                e('div', { className: 'max-w-3xl mx-auto' },
+                    e('div', { className: 'bg-white rounded-xl shadow-lg p-6 md:p-8' },
+                        e('div', { className: 'flex items-center justify-center gap-3 mb-6' },
+                            e(BriefcaseIcon),
+                            e('h1', { className: 'text-2xl md:text-3xl font-bold text-gray-800' }, 'I Packed My Suitcase')
+                        ),
+                        e('div', { className: 'bg-indigo-50 rounded-lg p-6 mb-6' },
+                            renderSentence()
+                        ),
+                        e('div', { className: 'text-sm text-gray-600 mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200' },
+                            'âš ï¸ ',
+                            e('strong', null, 'Remember: '),
+                            'Each word hides after 5 seconds!'
+                        ),
+                        message && e('div', {
+                            className: 'mb-6 p-4 rounded-lg ' + (
+                                gameState === 'won' ? 'bg-green-50 text-green-800' :
+                                gameState === 'lost' ? 'bg-red-50 text-red-800' :
+                                'bg-blue-50 text-blue-800'
+                            )
+                        }, message),
+                        userAnswer && gameState !== 'playing' && e('div', {
+                            className: 'mb-6 p-4 rounded-lg bg-gray-50 border border-gray-300'
+                        },
+                            e('div', { className: 'font-semibold text-gray-700 mb-1' }, 'Your Answer:'),
+                            e('div', { className: 'text-gray-800 mb-3' }, userAnswer),
+                            e('div', { className: 'font-semibold text-gray-700 mb-1' }, 'Correct Answer:'),
+                            e('div', { className: 'text-gray-800' }, items.join(', '))
+                        ),
+                        gameState === 'playing' && e('div', { className: 'mb-6 flex gap-3' },
+                            e('button', {
+                                onClick: addRandomItem,
+                                className: 'flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-base'
+                            }, 'Add Random Item'),
+                            e('button', {
+                                onClick: showAllWords,
+                                className: 'flex-1 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium text-base'
+                            }, 'Show All Words')
+                        ),
+                        e('div', { className: 'flex gap-3 mb-4' },
+                            e('button', {
+                                onClick: openRecallModal,
+                                disabled: gameState !== 'playing',
+                                className: 'flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-base disabled:bg-gray-400 disabled:cursor-not-allowed'
+                            }, 'Test My Memory'),
+                            e('button', {
+                                onClick: resetGame,
+                                className: 'px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-base'
+                            }, 'Reset')
+                        ),
+                        e('div', { className: 'mt-6 text-sm text-gray-600' },
+                            e('strong', null, 'How to play:'),
+                            e('ol', { className: 'list-decimal list-inside mt-2 space-y-1' },
+                                e('li', null, 'Memorize the current list of items'),
+                                e('li', null, 'Click "Add Random Item" to grow the list'),
+                                e('li', null, 'Words disappear after 5 seconds!'),
+                                e('li', null, 'Use "Show All Words" for a hint'),
+                                e('li', null, 'Click "Test My Memory" and type all items (any order)')
+                            )
+                        )
+                    )
+                )
             );
         }
 
-        ReactDOM.render(<SuitcaseGame />, document.getElementById('root'));
+        ReactDOM.render(e(SuitcaseGame), document.getElementById('root'));
     </script>
-    <!DOCTYPE html>
-    <h1>Privacy Policy</h1>
-    <p>This app does not collect, store, share, or process any personal data.</p>
-    <p>The app works entirely offline and does not connect to a server.</p>
 </body>
 </html>
